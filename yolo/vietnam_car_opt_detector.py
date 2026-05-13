@@ -6,7 +6,6 @@ from ultralytics import YOLO
 import openvino
 
 CONF_THRESHOLD = 0.45
-NMS_THRESHOLD = 0.50
 
 def car_video_detector(video_path, model_path):
     model = YOLO(model_path)
