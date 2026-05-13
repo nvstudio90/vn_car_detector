@@ -63,7 +63,6 @@ def preprocess(frame, target_size = 640):
     img_tensor = np.expand_dims(img_tensor, axis=0).astype(np.float32) / 255.0
     return img_tensor, (left, top, r)
 
-
 def preprocess(frame, target_size=640):
     h, w = frame.shape[:2]
     r = min(target_size / h, target_size / w)
@@ -86,7 +85,6 @@ def preprocess(frame, target_size=640):
     img_tensor = np.expand_dims(img_tensor, axis=0).astype(np.float32) / 255.0
     return img_tensor, (left, top, r)
 
-
 def postprocess(result, letterbox_info):
     left, top, r = letterbox_info
     output = np.squeeze(result)
@@ -106,7 +104,6 @@ def postprocess(result, letterbox_info):
                 "box": [int(xx1), int(yy1), int(xx2 - xx1), int(yy2 - yy1)],
             })
     return final_results
-
 
 def car_video_detector2(video_path, model_path):
     core = openvino.Core()
@@ -150,7 +147,6 @@ def car_video_detector2(video_path, model_path):
 
     cap.release()
     cv2.destroyAllWindows()
-
 
 if __name__ == '__main__':
     path = "../data/test.MOV"
