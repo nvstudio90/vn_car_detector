@@ -1,0 +1,24 @@
+description: Ultralytics YOLO26n model trained on /content/dataset2/data.yaml
+author: Ultralytics
+date: '2026-05-13T14:09:57.710964'
+version: 8.4.46
+license: AGPL-3.0 License (https://ultralytics.com/license)
+docs: https://docs.ultralytics.com
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 320
+- 320
+names:
+  0: VietNamCarLicenseTest
+args:
+  data: coco8.yaml
+  batch: 1
+  fraction: 1.0
+  half: false
+  int8: true
+  dynamic: false
+  nms: false
+channels: 3
+end2end: true
