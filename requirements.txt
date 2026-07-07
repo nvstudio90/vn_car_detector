@@ -67,3 +67,8 @@ platformdirs~=4.9.6
 future~=1.0.0
 
 paddle2onnx
+pillow
+requests
+quickdraw
+tqdm
+opencv-contrib-python

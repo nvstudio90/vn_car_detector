@@ -1,4 +1,6 @@
 import os
+
+import cv2
 import openvino as ov
 from paddleocr import PaddleOCR
 from ultralytics import YOLO
@@ -41,6 +43,26 @@ def export_via_onnx(model_onnx_path, save_dir):
 
     except Exception as e:
         print(f"Lỗi: {e}")
+
+def calculate_ratio(width, height, target_w = 320, target_h = 48):
+    r = min(target_w / width, target_h / height)
+    # print(r"new width = ",width * r,r"new height = ",height * r)
+    return r
+
+def preprocess_image(frame, target_with, target_height):
+    h, w = frame.shape[:2]
+    if h <=0 or w <=0:
+        return None
+    r = calculate_ratio(w, h, target_with, target_height)
+    new_unpad_w, new_unpad_h = int(round(w * r)), int(round(h * r))
+    img = cv2.resize(frame, (new_unpad_w, new_unpad_h), interpolation=cv2.INTER_LINEAR)
+    dw, dh = target_with - new_unpad_w, target_height - new_unpad_h
+    dw /= 2
+    dh /= 2
+    top, bottom = int(round(dh - 0.1)), int(round(dh + 0.1))
+    left, right = int(round(dw - 0.1)), int(round(dw + 0.1))
+    img_padded = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=(114, 114, 114))
+    return img_padded, (left, top, r)
 
 if __name__ == '__main__':
     # export_to_vino("../data/model_trained/vietnam_car_nano_model.pt")

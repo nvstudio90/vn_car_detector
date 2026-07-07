@@ -1,0 +1,6 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 52
+names: ["ant", "bear", "bee", "bird", "butterfly", "camel", "cat", "cow", "dog", "dolphin", "elephant", "fish", "frog", "giraffe", "lion", "monkey", "mouse", "owl", "panda", "penguin", "pig", "rabbit", "sheep", "snake", "spider", "tiger", "whale", "zebra","apple", "banana", "blackberry", "blueberry", "grapes", "pear", "pineapple", "strawberry", "watermelon","airplane", "bicycle", "bus", "car", "helicopter", "pickup truck", "police car", "school bus", "speedboat", "train", "truck", "van","flower", "cactus", "house plant"]
