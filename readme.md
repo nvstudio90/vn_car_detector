@@ -101,6 +101,194 @@ model_path = "../data/model_trained/vietnam_car_nano_model_openvino_model/vietna
 ocr_model_path = "../data/model_trained/orc_vino/inference.xml"
 ```
 
+## Quy Trình Core ML Cho macOS Và iOS
+
+Ngoài OpenVINO cho phần cứng Intel, dự án có thêm luồng Core ML để chạy tối ưu trên hệ sinh thái Apple như MacBook Apple Silicon, iPhone và iPad. Core ML có thể tận dụng CPU, GPU hoặc Apple Neural Engine tùy thiết bị và loại mô hình.
+
+Các file Core ML mặc định được lưu trong:
+
+```txt
+data/model_trained/coreml/
+```
+
+Sau khi export, thư mục này gồm:
+
+```txt
+data/model_trained/coreml/vietnam_car_nano_model.mlpackage
+data/model_trained/coreml/latin_PP-OCRv5_mobile_rec.mlpackage
+```
+
+### Thư Viện Cần Thiết
+
+Dự án mặc định dùng Python 3.11. Các thư viện liên quan tới export và chạy Core ML đã nằm trong `requirements.txt`:
+
+```txt
+ultralytics>=8.3,<9
+coremltools>=9.0
+torch
+onnx>=1.16,<2
+onnx2torch>=1.5,<2
+onnxsim>=0.4,<0.5
+opencv-python>=4.10,<5
+Pillow>=10,<13
+numpy>=1.26,<3
+```
+
+Cài dependencies:
+
+```bash
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+Lưu ý: `torch` thường được kéo theo khi cài `ultralytics`. Nếu môi trường chưa có `torch`, cài thêm bản phù hợp với máy trước khi export Core ML.
+
+### Chuyển YOLO Nano Sang Core ML
+
+Mô hình YOLO nano gốc:
+
+```txt
+data/model_trained/vietnam_car_nano_model.pt
+```
+
+Script export:
+
+```txt
+yolo/export_yolo_to_coreml.py
+```
+
+Chạy export với cấu hình mặc định:
+
+```bash
+.venv/bin/python yolo/export_yolo_to_coreml.py
+```
+
+Chạy export rõ tham số:
+
+```bash
+.venv/bin/python yolo/export_yolo_to_coreml.py \
+  --model data/model_trained/vietnam_car_nano_model.pt \
+  --output-dir data/model_trained/coreml \
+  --imgsz 640 \
+  --quantize fp16
+```
+
+Output:
+
+```txt
+data/model_trained/coreml/vietnam_car_nano_model.mlpackage
+```
+
+Nếu Ultralytics báo:
+
+```txt
+'nms=True' is not available for end2end models. Forcing 'nms=False'.
+```
+
+thì đây là cảnh báo bình thường với một số model YOLO end-to-end. Khi đó Core ML model trả output raw/end-to-end, còn bước lọc confidence và xử lý box được thực hiện trong code Python hoặc trong app iOS.
+
+### Chuyển PaddleOCR Mobile Sang Core ML
+
+Mô hình PaddleOCR mobile gốc:
+
+```txt
+data/latin_PP-OCRv5_mobile_rec/
+```
+
+Trong project đã có sẵn ONNX static:
+
+```txt
+data/model_trained/ocr_model_static.onnx
+```
+
+Script export OCR sang Core ML:
+
+```txt
+yolo/export_paddle_ocr_to_coreml.py
+```
+
+Chạy export mặc định, dùng ONNX static đã có sẵn:
+
+```bash
+.venv/bin/python yolo/export_paddle_ocr_to_coreml.py
+```
+
+Output:
+
+```txt
+data/model_trained/coreml/latin_PP-OCRv5_mobile_rec.mlpackage
+```
+
+Luồng chuyển đổi của OCR là:
+
+```txt
+PaddleOCR inference model
+      |
+      | paddle2onnx, nếu cần tạo lại ONNX
+      v
+ONNX static, input 1x3x48x320
+      |
+      | onnx2torch + coremltools
+      v
+Core ML .mlpackage
+```
+
+Nếu muốn tạo lại ONNX từ thư mục PaddleOCR gốc trước khi export Core ML:
+
+```bash
+.venv/bin/python yolo/export_paddle_ocr_to_coreml.py --rebuild-onnx
+```
+
+Lưu ý: bước `--rebuild-onnx` cần command `paddle2onnx`. Trên macOS arm64, `paddle2onnx` có thể xung đột dependency với các bản ONNX mới, nên cách ổn định hơn là dùng file `data/model_trained/ocr_model_static.onnx` đã có sẵn.
+
+OCR Core ML vẫn trả về logits theo chuỗi thời gian. Để lấy ra chuỗi biển số, runtime cần dùng CTC decoder với dictionary:
+
+```txt
+data/model_trained/orc_vino/ppocrv5_latin_dict.txt
+```
+
+### Chạy Detect Bằng Core ML
+
+File chạy suy luận Core ML:
+
+```txt
+yolo/vietnam_car_opt_coreml.py
+```
+
+Script này load đồng thời:
+
+- `vietnam_car_nano_model.mlpackage` để phát hiện vùng biển số.
+- `latin_PP-OCRv5_mobile_rec.mlpackage` để nhận diện nội dung biển số.
+- `ppocrv5_latin_dict.txt` để decode output OCR bằng CTC.
+
+Chạy với video mặc định `data/test.MOV`:
+
+```bash
+.venv/bin/python yolo/vietnam_car_opt_coreml.py
+```
+
+Chạy với video khác:
+
+```bash
+.venv/bin/python yolo/vietnam_car_opt_coreml.py \
+  --video data/test.MOV \
+  --detector-model data/model_trained/coreml/vietnam_car_nano_model.mlpackage \
+  --ocr-model data/model_trained/coreml/latin_PP-OCRv5_mobile_rec.mlpackage
+```
+
+Giới hạn tốc độ vòng lặp xử lý/hiển thị tối đa 60 FPS:
+
+```bash
+.venv/bin/python yolo/vietnam_car_opt_coreml.py --max-fps 60
+```
+
+Tắt giới hạn FPS:
+
+```bash
+.venv/bin/python yolo/vietnam_car_opt_coreml.py --max-fps 0
+```
+
+Trong app iOS, có thể đưa hai file `.mlpackage` vào Xcode, dùng CoreML/Vision để chạy YOLO, crop vùng biển số, resize/pad ảnh OCR về `1x3x48x320`, sau đó decode logits bằng CTC với dictionary tương ứng.
+
 ## Vì Sao Dùng YOLO Nano Và PaddleOCR
 
 - YOLO nano nhỏ và nhanh, phù hợp với bài toán phát hiện một class là vùng biển số.
@@ -126,4 +314,3 @@ data/model_trained/README.md
 ## Môi Trường Python
 
 Dự án mặc định dùng Python 3.11. File `.python-version` ở root giúp các tool như `pyenv` tự động chọn đúng phiên bản.
-
